@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Study Quest</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f8fb;color:#26364d;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+.app{max-width:780px;margin:auto;padding:20px 15px 48px}h1{margin:0;font-size:28px}.sub{color:#718096;margin:4px 0 18px}
+.card{background:#fff;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 5px 18px #20304012}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.level{font-size:23px;font-weight:800}.xp{font-weight:800}
+h2{font-size:18px;margin:0 0 12px}.small{font-size:13px;color:#78879a}.bar{height:13px;background:#e6edf5;border-radius:99px;overflow:hidden;margin:12px 0 6px}.fill{height:100%;background:#6d9ee8;width:0;transition:.4s}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{text-align:center;background:#f4f7fa;border-radius:14px;padding:12px}.stat b{display:block;font-size:22px;margin-top:3px}
+.form{display:grid;grid-template-columns:1fr 150px 85px;gap:8px}input,select,button{font:inherit;border:1px solid #d8e1eb;border-radius:12px;padding:10px;background:#fff}button{cursor:pointer;background:#edf4ff;border:0;font-weight:700}
+.quest{display:flex;align-items:center;gap:9px;padding:12px 0;border-bottom:1px solid #edf0f4}.quest:last-child{border-bottom:0}.name{flex:1}.done{text-decoration:line-through;color:#99a3b1}.badge{font-size:13px;color:#56739a}.empty{text-align:center;color:#8b97a8;padding:12px}
+.pill{display:inline-block;background:#eff4f8;border-radius:99px;padding:7px 10px;margin:3px;font-size:13px}.muted{opacity:.35}
+.monthnav{display:flex;align-items:center;gap:8px}.monthnav button{padding:7px 11px}
+.characters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.char{border:2px solid transparent;border-radius:16px;padding:8px;background:#f6f8fb;text-align:center;cursor:pointer}.char.active{border-color:#6d9ee8}.avatar{height:105px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:45px;overflow:hidden;background:linear-gradient(145deg,#dcecff,#eef7ff)}.avatar img{width:100%;height:100%;object-fit:cover}.char b{display:block;margin-top:7px}.char span{font-size:12px;color:#718096}
+.profile{display:grid;grid-template-columns:115px 1fr;gap:14px;align-items:center}.profile .avatar{height:135px}.speech{margin-top:14px;background:#f3f7ff;border:1px solid #dce8fa;border-radius:16px;padding:12px 14px;position:relative}.speech:before{content:"";position:absolute;left:28px;top:-8px;width:14px;height:14px;background:#f3f7ff;border-left:1px solid #dce8fa;border-top:1px solid #dce8fa;transform:rotate(45deg)}.speech b{display:block;font-size:12px;color:#6d83a1;margin-bottom:3px}.speech span{line-height:1.6}
+.file{display:none}.upload{display:inline-block;padding:10px 12px;background:#edf4ff;border-radius:12px;font-weight:700;cursor:pointer}
+@media(max-width:560px){.form{grid-template-columns:1fr 100px}.form button{grid-column:1/-1}.characters{grid-template-columns:repeat(2,1fr)}.profile{grid-template-columns:90px 1fr}.profile .avatar{height:105px}}
+
+/* practical-site upgrades */
+button:disabled{cursor:not-allowed;opacity:.45}
+button:active{transform:translateY(1px)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.secondary{background:#f4f7fa}
+.danger{background:#fff0f0;color:#b44}
+.quest-actions{display:flex;gap:6px;align-items:center}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);
+background:#26364d;color:#fff;padding:11px 16px;border-radius:12px;opacity:0;pointer-events:none;
+transition:.25s;z-index:99;box-shadow:0 8px 25px #0002}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.app-footer{color:#8794a5;text-align:center;font-size:12px;margin-top:18px}
+@media(max-width:560px){
+  .toolbar button{flex:1}
+  .quest{align-items:flex-start}
+  .quest-actions{margin-left:auto}
+}
+</style>
+</head>
+<body>
+
+<section id="xp-diagnosis" style="margin:16px 0;padding:16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+  <h2 style="margin:0 0 8px">🧠 XP診断</h2>
+  <p style="margin:0 0 12px;opacity:.8">今日やった勉強を入力すると、量・時間・難しさからXPを自動計算します。</p>
+  <textarea id="xpDiagText" rows="3" placeholder="例：数学の問題集を8ページやって、難しい問題にも挑戦した"></textarea>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <label>勉強時間（分）
+      <input id="xpDiagMinutes" type="number" min="0" value="30">
+    </label>
+    <label>難易度
+      <select id="xpDiagDifficulty">
+        <option value="1">★☆☆☆☆ かなり簡単</option>
+        <option value="2">★★☆☆☆ やや簡単</option>
+        <option value="3" selected>★★★☆☆ 普通</option>
+        <option value="4">★★★★☆ 難しい</option>
+        <option value="5">★★★★★ とても難しい</option>
+      </select>
+    </label>
+  </div>
+  <label style="display:block;margin-top:10px">取り組んだ量（0〜10）
+    <input id="xpDiagAmount" type="range" min="0" max="10" value="5">
+    <span id="xpDiagAmountValue">5</span>
+  </label>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <button id="xpDiagnoseBtn" type="button">✨ XPを診断</button>
+    <button id="xpUseResultBtn" type="button" disabled>このXPをクエストに使う</button>
+  </div>
+  <div id="xpDiagResult" style="margin-top:12px;font-weight:700"></div>
+</section>
+<div class="app">
+<div class="row"><div><h1>⚔️ Study Quest</h1><div class="sub">勉強をクエストにして、毎月レベルアップ。</div></div><button onclick="editName()">名前変更</button></div>
+<div class="toolbar">
+  <button class="secondary" onclick="exportData()">💾 データ保存</button>
+  <label class="upload secondary">📂 データ復元<input class="file" id="importFile" type="file" accept="application/json" onchange="importData(event)"></label>
+  <button class="secondary" onclick="resetAll()">↻ リセット</button>
+</div>
+
+
+<section class="card">
+<div class="profile"><div class="avatar" id="mainAvatar">📚</div><div>
+<div class="level" id="level"></div><div class="xp" id="xp"></div>
+<div class="bar"><div class="fill" id="fill"></div></div>
+<div class="small">次のレベルまで <span id="remain"></span> EXP</div>
+</div></div><div class="speech"><b id="speechName">キャラクター</b><span id="speechText">今日も一緒にがんばろう！</span></div>
+</section>
+
+<section class="card">
+<h2>🧑‍🎨 キャラクター</h2>
+<div class="characters" id="characters"></div>
+<div style="margin-top:12px" class="small">初期キャラを選ぶか、自分のイラストをアップロードしてオリジナルキャラを作れます。</div>
+<div style="margin-top:10px" class="form">
+<input id="newCharName" placeholder="オリジナルキャラ名">
+<label class="upload">🖼️ イラストを選択<input class="file" id="charFile" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event)"></label>
+<button onclick="createCharacter()">作成</button>
+</div>
+<div id="preview" class="small" style="margin-top:8px"></div>
+</section>
+
+<section class="card">
+<div class="row"><h2>🗓️ 月の記録</h2><div class="monthnav"><button onclick="changeMonth(-1)">‹</button><b id="month"></b><button onclick="changeMonth(1)">›</button></div></div>
+<div class="small" id="now"></div>
+<div class="stats" style="margin-top:10px"><div class="stat">月EXP<b id="mXP">0</b></div><div class="stat">達成日数<b id="mDays">0</b></div><div class="stat">Lv.<b id="mLv">1</b></div></div>
+</section>
+
+<section class="card">
+<h2>🗺️ 今日のクエスト</h2>
+<div class="form">
+<input id="qname" placeholder="例：英語ワーク2ページ">
+<select id="qtype"><option value="auto">EXP自動</option><option value="10">10 EXP</option><option value="20">20 EXP</option><option value="30">30 EXP</option></select>
+<button onclick="addQuest()">追加</button>
+</div>
+<div class="small" style="margin-top:8px">自動EXP：暗記・復習など10 / 標準20 / テスト・模試・レポートなど30。</div>
+<div id="quests"></div>
+</section>
+
+<section class="card"><h2>🎁 今月のごほうび</h2>
+<div class="form"><input id="reward" placeholder="例：ゲームを30分する"><select id="rewardLv"><option value="3">Lv.3</option><option value="5">Lv.5</option><option value="10">Lv.10</option></select><button onclick="addReward()">追加</button></div>
+<div id="rewards"></div></section>
+
+<section class="card"><h2>🏆 実績</h2><div id="ach"></div></section>
+<div class="app-footer">データはこの端末のブラウザに保存されます。ブラウザを変える前に「データ保存」を使ってね。</div>
+</div>
+
+<script>
+const KEY="studyQuest_v4";
+const starters=[
+ {id:"starter1",name:"あおい",desc:"おだやか",emoji:"🌱"},
+ {id:"starter2",name:"そら",desc:"元気",emoji:"⭐"},
+ {id:"starter3",name:"しずく",desc:"マイペース",emoji:"🌙"}
+];
+let s=JSON.parse(localStorage.getItem(KEY)||"null")||{
+ name:"てんちゃん",quests:[],months:{},total:0,rewards:[],characters:[],activeChar:"starter1"
+};
+if(!s.characters.length)s.characters=starters.map(x=>({...x,image:null}));
+let view=new Date();view.setDate(1);let pendingImage=null;let speechText="今日も一緒にがんばろう！";
+
+const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+const today=()=>key(new Date());
+function monthData(k){return s.months[k]||(s.months[k]={xp:0,days:[],clears:0});}
+function save(){localStorage.setItem(KEY,JSON.stringify(s));render();}
+function say(text){speechText=text;const el=document.getElementById("speechText");if(el)el.textContent=text;}
+function charLines(c){
+ const lines={starter1:["今日も無理しすぎず、ひとつずつ進めようね。","クエストを1個だけでも終わらせたらえらいよ。","おかえり！今日の冒険はどこから始める？"],starter2:["よーし！今日もクエスト攻略していこう！","EXPゲットのチャンスだよ！まずは1個！","おっ、来たね！今日は何をクリアする？"],starter3:["マイペースで大丈夫。少しずつ進もう。","休憩も大事だよ。終わったらちゃんと休もうね。","今日も静かに、ひとつずつ片付けようか。"]};
+ return lines[c.id]||[`${c.name}だよ。今日も一緒に進もう！`,`次のクエスト、ひとつだけやってみない？`,`勉強したらちゃんと休もうね。`];
+}
+function randomLine(c){const a=charLines(c);return a[Math.floor(Math.random()*a.length)];}
+function editName(){const n=prompt("表示する名前を入力してね",s.name);if(n&&n.trim()){s.name=n.trim().slice(0,20);save();}}
+function addQuest(){
+ const n=qname.value.trim();if(!n)return;
+ const v=qtype.value,xp=v==="auto"?autoXP(n):Number(v);
+ s.quests.push({id:Date.now(),name:n,xp,date:today(),done:false});qname.value="";save();
+ const c=s.characters.find(x=>x.id===s.activeChar)||s.characters[0];say(`${c.name}「新しいクエストだね！一緒にクリアしよう！」`);
+}
+function autoXP(n){
+ if(/(単語|暗記|復習|音読|1ページ|一問|1問|5分|10分)/.test(n))return 10;
+ if(/(テスト|模試|過去問|レポート|大きな課題|試験)/.test(n))return 30;
+ return 20;
+}
+function complete(id){
+ const q=s.quests.find(x=>x.id===id);if(!q||q.done)return;
+ const d=monthData(q.date.slice(0,7));const oldLv=Math.floor(d.xp/100)+1;
+ q.done=true;s.total+=q.xp;d.xp+=q.xp;d.clears++;
+ if(!d.days.includes(q.date))d.days.push(q.date);save();
+ const c=s.characters.find(x=>x.id===s.activeChar)||s.characters[0];const newLv=Math.floor(d.xp/100)+1;
+ if(newLv>oldLv)say(`${c.name}「レベルアップ！Lv.${newLv}だよ！すごい！」`);else say(`${c.name}「クエストクリア！+${q.xp} EXPだね！」`);
+}
+function deleteQ(id){s.quests=s.quests.filter(q=>q.id!==id);save();}
+function changeMonth(n){view.setMonth(view.getMonth()+n);render();}
+function addReward(){const n=reward.value.trim(),lv=Number(rewardLv.value);if(!n)return;s.rewards.push({id:Date.now(),name:n,lv,used:false});reward.value="";save();}
+function useReward(id){const r=s.rewards.find(x=>x.id===id),d=monthData(key(view));if(r&&Math.floor(d.xp/100)+1>=r.lv){r.used=true;save();}}
+function previewImage(e){
+ const f=e.target.files[0];if(!f)return;
+ if(f.size>4*1024*1024){alert("画像は4MB以下にしてね");e.target.value="";return;}
+ const reader=new FileReader();reader.onload=()=>{pendingImage=reader.result;preview.textContent="画像を読み込みました。名前を入力して「作成」！";};reader.readAsDataURL(f);
+}
+function createCharacter(){
+ const n=newCharName.value.trim();if(!n||!pendingImage){alert("名前とイラストの両方を設定してね");return;}
+ const id="custom_"+Date.now();s.characters.push({id,name:n.slice(0,20),desc:"オリジナル",emoji:"✨",image:pendingImage});
+ s.activeChar=id;newCharName.value="";charFile.value="";pendingImage=null;preview.textContent="";save();
+}
+function selectChar(id){s.activeChar=id;save();const c=s.characters.find(x=>x.id===id);if(c)say(randomLine(c));}
+function charHTML(c){
+ const img=c.image?`<img src="${c.image}" alt="">`:c.emoji;
+ return `<div class="char ${s.activeChar===c.id?"active":""}" onclick="selectChar('${c.id}')"><div class="avatar">${img}</div><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div>`;
+}
+function render(){
+ const k=key(view),d=monthData(k),lv=Math.floor(d.xp/100)+1,cur=d.xp%100;
+ level.textContent=`Lv.${lv}  ${s.name}`;xp.textContent=`${cur} / 100 EXP`;fill.style.width=cur+"%";remain.textContent=100-cur;
+ month.textContent=`${view.getFullYear()}年${view.getMonth()+1}月`;
+ now.textContent=`現在：${new Date().toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
+ mXP.textContent=d.xp;mDays.textContent=d.days.length;mLv.textContent=lv;
+ const active=s.characters.find(c=>c.id===s.activeChar)||s.characters[0];
+ speechName.textContent=active?active.name:"キャラクター";document.getElementById("speechText").textContent=speechText;
+ mainAvatar.innerHTML=active.image?`<img src="${active.image}" alt="">`:active.emoji;
+ characters.innerHTML=s.characters.map(charHTML).join("");
+ const qs=s.quests.filter(q=>q.date===today());
+ quests.innerHTML=qs.length?qs.map(q=>`<div class="quest"><button onclick="complete(${q.id})">${q.done?"✓":"＋"}</button><div class="name ${q.done?"done":""}">${esc(q.name)}</div><span class="badge">+${q.xp} EXP</span><div class="quest-actions"><button class="secondary" onclick="editQuest(${q.id})">編集</button><button class="danger" onclick="deleteQ(${q.id})">×</button></div></div>`).join(""):"<div class='empty'>今日のクエストはまだないよ。まず1個だけ追加してみよう！</div>";
+ rewards.innerHTML=s.rewards.length?s.rewards.map(r=>`<div class="quest"><div class="name">${esc(r.name)}</div><span class="badge">Lv.${r.lv} 解禁</span><button ${lv>=r.lv&&!r.used?"":"disabled"} onclick="useReward(${r.id})">${r.used?"使用済み":lv>=r.lv?"使う":"未解禁"}</button></div>`).join(""):"<div class='empty'>ごほうびを登録すると、レベルアップの目標にできるよ！</div>";
+ const allDays=Object.values(s.months).reduce((a,x)=>a+x.days.length,0);
+ const a=[["🌱 初クエスト",s.total>0],["🔥 3日達成",allDays>=3],["⭐ 100 EXP",s.total>=100],["💎 500 EXP",s.total>=500],["🏰 月Lv.10",Object.values(s.months).some(x=>x.xp>=900)]];
+ ach.innerHTML=a.map(([n,on])=>`<span class="pill ${on?"":"muted"}">${n}</span>`).join("");
+}
+
+function toast(msg){
+  let t=document.getElementById("toast");
+  if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add("show");clearTimeout(window.__toast);
+  window.__toast=setTimeout(()=>t.classList.remove("show"),1800);
+}
+function editQuest(id){
+  const q=s.quests.find(x=>x.id===id);if(!q)return;
+  const n=prompt("クエスト名を変更",q.name);
+  if(n&&n.trim()){q.name=n.trim().slice(0,100);save();toast("クエストを変更しました");}
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`study-quest-backup-${today()}.json`;
+  a.click();URL.revokeObjectURL(a.href);toast("バックアップを保存しました");
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(!data||!Array.isArray(data.quests)||!data.months)throw new Error();
+      s=data;
+      if(!Array.isArray(s.characters)||!s.characters.length)s.characters=starters.map(x=>({...x,image:null}));
+      save();toast("データを復元しました");
+    }catch(err){alert("このファイルはStudy Questのバックアップではないみたいです。");}
+    e.target.value="";
+  };
+  r.readAsText(f);
+}
+function resetAll(){
+  if(!confirm("Study Questのデータをすべて消します。先に「データ保存」でバックアップできます。"))return;
+  localStorage.removeItem(KEY);
+  location.reload();
+}
+function esc(x){return x.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+render();
+const initialChar=s.characters.find(c=>c.id===s.activeChar)||s.characters[0];if(initialChar)say(randomLine(initialChar));
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
+</script></body></html>
